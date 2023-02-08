@@ -1,3 +1,14 @@
+/************************************************
+  Multisensor array using ESP-32
+  Miltiple BME sensors used on different pins with switching 
+  I2C bus pins for serail access
+  
+  Developed by Motaz Salama Mabrouk and Frantisek Miksik
+  Kyushu University, IGSES, TESC Labor
+
+***********************************************/
+
+
 #include <Arduino.h>
 
 
@@ -9,8 +20,8 @@
 #include <Adafruit_BME280.h>
 
 // -----------------------------------------------------------------------------
-#define I2C_SDA 18
-#define I2C_SCL 19
+#define I2C_SDA_1 18
+#define I2C_SCL_1 19
 
 #define I2C_SDA_2 21
 #define I2C_SCL_2 22
@@ -18,62 +29,51 @@
 #define I2C_SDA_3 27
 #define I2C_SCL_3 15
 
-TwoWire I2CLine_1= TwoWire(0);
+//We will initialize only one data bus for data handling
+//we will be calling then each BME sensor in series, hence no need to compete between them
+TwoWire I2CLine = TwoWire(0);
 Adafruit_BME280 bme; // I2C
 
-TwoWire I2CLine_2= TwoWire(1);
-Adafruit_BME280 bme_2; // I2C
-
-TwoWire I2CLine_3= TwoWire(2);
-Adafruit_BME280 bme_3; // I2C
+void BME_Begin(int sda, int scl){
+  I2CLine.begin(sda, scl, 100000);
+  bme.begin(0x76,&I2CLine);
+}
 
 void setup () {
 
   Serial.begin(115200);
-  I2CLine_1.begin(I2C_SDA, I2C_SCL, 100000);
-  I2CLine_2.begin(I2C_SDA_2, I2C_SCL_2, 100000);
-  I2CLine_3.begin(I2C_SDA_3, I2C_SCL_3, 100000);
-  bme.begin(0x76,&I2CLine_1);
-  bme_2.begin(0x76,&I2CLine_2);
-  bme_3.begin(0x76,&I2CLine_3);
+  delay(500);
+  BME_Begin(I2C_SDA_1, I2C_SCL_1);
+  delay(500);
+  BME_Begin(I2C_SDA_2, I2C_SCL_2);
+  delay(500);
+  BME_Begin(I2C_SDA_3, I2C_SCL_3);
+  delay(500);
 }
 
 // ------------------------------------------------------------------
 // BME280
-String BME_Data(){
+// this function will output the reading of the individual BME sensors.
+// As the sensors have already been initialized, we should be able to read them just by swithing the I2C lines in the ESP-32
+// Because the line itself stays the same, we should be able to achieve the same effect using the only one BUS reference
+// When we swith the lines, different BME will be accessible even thou we are using the same global variable as reference
+String BME_Data(String sensorNo, int sda, int scl){
     
+    I2CLine.begin(sda, scl, 100000);
+    delay(10); //the delay is just to make sure that the line is stable after initializing, it might be not necessary, you can try to remove it later
     String bme_str_data;
-    float temp=bme.readTemperature();
-    float hum=bme.readHumidity();
-    float press=(bme.readPressure() / 100.0F);
-    bme_str_data=",Sensor NO.1 Temperature,"   + String( temp )   + " ,"   + String( hum )   + " ," +   String( press );
+    float temp = bme.readTemperature();
+    float hum = bme.readHumidity();
+    float press = (bme.readPressure() / 100.0F);
+    delay(10); //same as above
+    bme_str_data = ",S" + sensorNo + "," + String( temp ) + "," + String( hum ) + "," + String( press );
     return bme_str_data;
 }
 
-// NO.2 BME280
-String BME_Data_2(){
-    
-    String bme_str_data;
-    float temp=bme_2.readTemperature();
-    float hum=bme_2.readHumidity();
-    float press=(bme_2.readPressure() / 100.0F);
-    bme_str_data="   ,Sensor NO.2 Temperature," +  String( temp )   + " ,"  +  String( hum )  + " ," +  String( press );
-    return bme_str_data;
-}
 
-// NO.3 BME280
-String BME_Data_3(){
-    
-    String bme_str_data;
-    float temp=bme_3.readTemperature();
-    float hum=bme_3.readHumidity();
-    float press=(bme_3.readPressure() / 100.0F);
-    bme_str_data="   ,Sensor NO.3 Temperature," +  String( temp )   + " ,"  +  String( hum )  + " ," +  String( press );
-    return bme_str_data;
-}
 void loop () {
   delay(3000);
-  Serial.print(BME_Data());
-  Serial.println(BME_Data_2());
-  Serial.println(BME_Data_3());
+  Serial.print(BME_Data("1", I2C_SDA_1, I2C_SCL_1));
+  Serial.print(BME_Data("2", I2C_SDA_2, I2C_SCL_2));
+  Serial.println(BME_Data("3", I2C_SDA_3, I2C_SCL_3));
 }
