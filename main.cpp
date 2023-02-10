@@ -38,6 +38,7 @@ Adafruit_BME280 bme; // I2C
 void BME_Begin(int sda, int scl){
   I2CLine.begin(sda, scl, 100000);
   bme.begin(0x76,&I2CLine);
+  I2CLine.end(); //we need to release the line's lock
 }
 
 void setup () {
@@ -68,6 +69,7 @@ String BME_Data(String sensorNo, int sda, int scl){
     float press = (bme.readPressure() / 100.0F);
     delay(10); //same as above
     bme_str_data = ",S" + sensorNo + "," + String( temp ) + "," + String( hum ) + "," + String( press );
+    I2CLine.end(); //we need to release the line's lock
     return bme_str_data;
 }
 
